@@ -49,6 +49,9 @@
   .tag { display:inline-block; font-size:11px; font-weight:700; padding:1px 7px; border-radius:10px; margin-left:4px; }
   .tag.below { background:var(--badbg); color:var(--bad); }
   .tag.err { background:var(--badbg); color:var(--bad); }
+  .tag.match { background:#EAF0FB; color:#0B3D91; font-weight:600; }
+  .banner.day { cursor:pointer; }
+  .banner.day b { text-decoration:underline; }
   .step { display:flex; align-items:center; }
   .step button { width:40px; height:44px; border:1px solid #CFC8B6; background:#F7F5EF; font-size:22px; font-weight:700; color:var(--char); }
   .step button:first-child { border-radius:10px 0 0 10px; }
@@ -92,7 +95,6 @@
 <header>
   <div class="kicker">D'bo's Daily Ops</div>
   <h1>Daily AM Food Count</h1>
-  <div class="sub">Backstock only: walk-in, freezer, dry storage. Not the line.</div>
 </header>
 
 <div id="app">
@@ -108,7 +110,7 @@
 
   <div class="tools">
     <div class="search">
-      <input id="q" type="search" placeholder="Search items… (e.g. shrimp)" autocomplete="off">
+      <input id="q" type="search" placeholder="Search items or categories…" autocomplete="off">
       <button id="clearQ" aria-label="Clear search">×</button>
     </div>
     <div class="chips" id="chips"></div>
@@ -188,7 +190,7 @@ if ("serviceWorker" in navigator) {
 var counts = {}, filter = "all", query = "";
 var HALF = [];
 var STORE_KEY = "dbosFoodCount-" + new Date().toDateString();
-var CHIPS = [["all","All"],["priority","Priority"],["Frozen","Frozen"],["Refrigerated","Refrigerated"],["Dry Storage","Dry"],["specials","Taco / Brunch"],["supplies","Supplies"]];
+var CHIPS = [["all","All"],["priority","Priority"],["Frozen","Frozen"],["Refrigerated","Refrigerated"],["Dry Storage","Dry"],["taco","Taco Tuesday"],["brunch","Sunday Brunch"],["supplies","Supplies"]];
 
 function zoneOf(sec) {
   if (sec.group === "taco" || sec.group === "brunch") return "specials";
@@ -213,22 +215,41 @@ function rowClass(it) {
   var v = counts[it[0]], has = v !== undefined && v !== "";
   return "item" + (has ? (valid(v, it[1]) ? " counted" : " invalid") : "");
 }
+function tagsOf(it) { return it[2] || []; }
+function hasTag(it, t) { return tagsOf(it).indexOf(t) !== -1; }
+// Which items each filter button shows. Taco Tuesday / Sunday Brunch show
+// every item the meal needs (tags), wherever it's stored.
+function passesFilter(it, sec) {
+  switch (filter) {
+    case "all": return true;
+    case "priority": return sec.group === "priority";
+    case "taco": return sec.group === "taco" || hasTag(it, "Taco Tuesday");
+    case "brunch": return sec.group === "brunch" || hasTag(it, "Sunday Brunch");
+    case "supplies": return sec.group === "supplies";
+    default: return zoneOf(sec) === filter; // Frozen / Refrigerated / Dry Storage
+  }
+}
+// Search matches the item name, its category (section) name, or any tag.
+// Returns the matching tags (to show why it matched), or null for no match.
+function searchMatch(it, sec, q) {
+  var tagHits = tagsOf(it).filter(function (t) { return t.toLowerCase().indexOf(q) !== -1; });
+  if (it[0].toLowerCase().indexOf(q) !== -1) return tagHits;
+  if (sec.title.toLowerCase().indexOf(q) !== -1) return tagHits;
+  return tagHits.length ? tagHits : null;
+}
 function render() {
   var html = "", any = false, q = query.toLowerCase();
   DATA.sections.forEach(function (sec, si) {
-    var z = zoneOf(sec);
-    if (!q) {
-      if (filter === "priority" && sec.group !== "priority") return;
-      if (filter !== "all" && filter !== "priority" && z !== filter) return;
-    }
     var rows = "";
     sec.items.forEach(function (it, ii) {
-      var name = it[0], unit = it[1];
-      if (q && name.toLowerCase().indexOf(q) === -1) return;
+      var name = it[0], unit = it[1], hits = [];
+      if (q) { hits = searchMatch(it, sec, q); if (hits === null) return; }
+      else if (!passesFilter(it, sec)) return;
       var v = counts[name], has = v !== undefined && v !== "";
+      var why = hits.length ? '<div class="meta">' + hits.map(function (t) { return '<span class="tag match">' + esc(t) + '</span>'; }).join("") + '</div>' : "";
       rows += '<div class="' + rowClass(it) + '" id="row-' + si + '-' + ii + '">' +
         '<div class="info"><div class="nm">' + esc(name) + '</div>' +
-        '<div class="meta">' + metaHtml(it) + '</div></div>' +
+        '<div class="meta">' + metaHtml(it) + '</div>' + why + '</div>' +
         '<div class="step"><button type="button" onclick="bump(' + si + ',' + ii + ',-1)">−</button>' +
         '<input inputmode="' + (isHalf(unit) ? "decimal" : "numeric") + '" value="' + (has ? esc(v) : "") + '" ' +
         'oninput="setCount(' + si + ',' + ii + ',this.value)" aria-label="' + esc(name) + ' count">' +
@@ -409,8 +430,8 @@ function start() {
   document.getElementById("shift").addEventListener("change", save);
   document.getElementById("notes").addEventListener("input", save);
   var day = new Date().getDay(), b = document.getElementById("dayBanner");
-  if (day === 1) { b.textContent = "Monday: also count the Taco Tuesday items (Taco / Brunch tab)."; b.style.display = "block"; }
-  if (day === 5) { b.textContent = "Friday: also count the Sunday Brunch items (Taco / Brunch tab)."; b.style.display = "block"; }
+  if (day === 1) { b.innerHTML = "Today is Monday: make sure to count the <b>Taco Tuesday</b> items."; b.style.display = "block"; b.onclick = function () { setFilter("taco"); }; }
+  if (day === 5) { b.innerHTML = "Today is Friday: make sure to count the <b>Sunday Brunch</b> items."; b.style.display = "block"; b.onclick = function () { setFilter("brunch"); }; }
   renderWriteIns(); restore(); renderChips(); render();
 }
 boot();
