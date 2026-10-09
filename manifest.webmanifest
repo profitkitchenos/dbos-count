@@ -1,0 +1,16 @@
+{
+  "name": "D'bo's Daily AM Food Count",
+  "short_name": "D'bo's Count",
+  "description": "Daily backstock count for D'bo's Daiquiris, Wings & Seafood — powered by Profit Kitchen.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F1E8",
+  "theme_color": "#2F3437",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

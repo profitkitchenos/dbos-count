@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>D'bo's Food Count</title>
+<meta name="theme-color" content="#2F3437">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="D'bo's Count">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root { --char:#2F3437; --gold:#D9B34E; --cream:#F5F1E8; --ink:#16181b; --grey:#5B5F66; --line:#E4DFD1;
+          --ok:#0F7A34; --okbg:#DFF5E4; --bad:#A6291F; --badbg:#FADBD9; --warnbg:#FFF0CC; --warn:#92600A; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--cream); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; font-size:16px; padding-bottom:96px; }
+  header { background:var(--char); color:#fff; padding:14px 16px 12px; }
+  header .kicker { color:var(--gold); font-size:11px; letter-spacing:2px; font-weight:700; text-transform:uppercase; }
+  header h1 { margin:2px 0 0; font-size:22px; }
+  header .sub { color:#C8C8C8; font-size:13px; margin-top:2px; }
+  .wrap { padding:12px 16px; max-width:720px; margin:0 auto; }
+  .who { display:flex; gap:10px; }
+  .who label { flex:1; font-size:12px; font-weight:700; color:var(--grey); text-transform:uppercase; letter-spacing:.5px; }
+  .who input, .who select { width:100%; margin-top:4px; padding:11px 12px; font-size:16px; border:1px solid #CFC8B6; border-radius:10px; background:#fff; }
+  .who .name { flex:2; }
+  .banner { margin:10px 0 0; padding:10px 12px; border-radius:10px; font-size:14px; }
+  .banner.day { background:#FBF3DC; border:1px solid #EAD9A0; color:#5B5647; }
+  .banner.restore { background:#EAF0FB; border:1px solid #C9D6EE; color:#0B3D91; }
+  .tools { position:sticky; top:0; z-index:5; background:var(--cream); padding:10px 16px 8px; border-bottom:1px solid var(--line); }
+  .search { position:relative; max-width:720px; margin:0 auto; }
+  .search input { width:100%; padding:12px 40px 12px 14px; font-size:17px; border:2px solid var(--char); border-radius:12px; background:#fff; }
+  .search input::-webkit-search-cancel-button { -webkit-appearance:none; display:none; }
+  .search button { position:absolute; right:6px; top:6px; width:34px; height:34px; border:0; background:transparent; font-size:22px; color:var(--grey); display:none; }
+  .chips { display:flex; gap:6px; overflow-x:auto; padding-top:8px; max-width:720px; margin:0 auto; -webkit-overflow-scrolling:touch; }
+  .chip { flex:0 0 auto; padding:7px 12px; border-radius:20px; border:1px solid #CFC8B6; background:#fff; font-size:14px; font-weight:600; color:var(--char); }
+  .chip.on { background:var(--char); color:#fff; border-color:var(--char); }
+  .section { margin-top:14px; }
+  .section h2 { font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:var(--char); margin:0 0 6px; padding-left:10px; border-left:4px solid var(--gold); }
+  .section .help { font-size:12px; color:var(--grey); margin:-2px 0 6px 14px; }
+  .item { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-left:4px solid transparent; border-radius:10px; padding:9px 10px; margin-bottom:6px; }
+  .item.counted { border-left-color:var(--ok); }
+  .item.invalid { border-left-color:var(--bad); background:#FFF7F6; }
+  .item .info { flex:1; min-width:0; }
+  .item .nm { font-weight:600; font-size:15px; line-height:1.25; }
+  .item .meta { font-size:12px; color:var(--grey); margin-top:2px; }
+  .tag { display:inline-block; font-size:11px; font-weight:700; padding:1px 7px; border-radius:10px; margin-left:4px; }
+  .tag.below { background:var(--badbg); color:var(--bad); }
+  .tag.err { background:var(--badbg); color:var(--bad); }
+  .step { display:flex; align-items:center; }
+  .step button { width:40px; height:44px; border:1px solid #CFC8B6; background:#F7F5EF; font-size:22px; font-weight:700; color:var(--char); }
+  .step button:first-child { border-radius:10px 0 0 10px; }
+  .step button:last-child { border-radius:0 10px 10px 0; }
+  .step input { width:58px; height:44px; border:1px solid #CFC8B6; border-left:0; border-right:0; text-align:center; font-size:18px; font-weight:700; }
+  .empty { text-align:center; color:var(--grey); padding:30px 10px; }
+  .wi { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:8px; display:grid; grid-template-columns:1fr 80px 110px; gap:8px; }
+  .wi input, .wi select, textarea { padding:10px; font-size:16px; border:1px solid #CFC8B6; border-radius:8px; width:100%; background:#fff; }
+  textarea { min-height:70px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:10px 16px calc(10px + env(safe-area-inset-bottom)); display:flex; align-items:center; gap:12px; z-index:10; box-shadow:0 -4px 16px rgba(0,0,0,.06); }
+  .bar .prog { flex:1; font-size:13px; color:var(--grey); }
+  .bar .prog b { color:var(--ink); font-size:15px; }
+  .meter { height:6px; background:#EEE9DB; border-radius:4px; margin-top:5px; overflow:hidden; }
+  .meter span { display:block; height:100%; background:var(--gold); width:0; transition:width .2s; }
+  .btn { border:0; border-radius:12px; padding:13px 20px; font-size:16px; font-weight:700; background:var(--char); color:#fff; }
+  .btn.gold { background:var(--gold); color:var(--char); }
+  .btn.ghost { background:#fff; color:var(--char); border:1px solid #CFC8B6; }
+  .btn:disabled { opacity:.5; }
+  .modal { position:fixed; inset:0; background:rgba(22,24,27,.55); display:none; align-items:flex-end; justify-content:center; z-index:20; }
+  .modal.show { display:flex; }
+  .sheet { background:#fff; width:100%; max-width:720px; border-radius:18px 18px 0 0; padding:20px 18px calc(18px + env(safe-area-inset-bottom)); }
+  .sheet h3 { margin:0 0 8px; font-size:19px; }
+  .sheet p { margin:6px 0; font-size:15px; color:var(--grey); }
+  .sheet .list { max-height:30vh; overflow:auto; font-size:13px; color:var(--bad); background:#FFF7F6; border-radius:8px; padding:8px 10px; margin:8px 0; }
+  .sheet .row { display:flex; gap:10px; margin-top:14px; }
+  .sheet .row .btn { flex:1; }
+  .done { display:none; text-align:center; padding:60px 20px; }
+  .done .check { width:72px; height:72px; border-radius:50%; background:var(--okbg); color:var(--ok); font-size:40px; line-height:72px; margin:0 auto 14px; font-weight:700; }
+  .done h2 { margin:0 0 6px; }
+  .done p { color:var(--grey); }
+  .loading { position:fixed; inset:0; background:var(--cream); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:30; color:var(--grey); text-align:center; padding:24px; }
+  .loading img { width:84px; height:84px; border-radius:20px; margin-bottom:14px; }
+  .loading .err { color:var(--bad); font-weight:600; margin-top:10px; display:none; }
+  .banner.offline { background:var(--warnbg); border:1px solid #EAD9A0; color:var(--warn); }
+  header { padding-top:calc(14px + env(safe-area-inset-top)); }
+  .pk { text-align:center; font-size:11px; color:#8A8477; padding:14px 0 4px; letter-spacing:.5px; }
+</style>
+</head>
+<body>
+<div class="loading" id="loading"><img src="icons/icon-192.png" alt=""><div>Loading today's count list…</div><div class="err" id="loadErr">Couldn't load the list. Check your signal, then <a href="" onclick="location.reload();return false;">try again</a>.</div></div>
+<header>
+  <div class="kicker">D'bo's Daily Ops</div>
+  <h1>Daily AM Food Count</h1>
+  <div class="sub">Backstock only: walk-in, freezer, dry storage. Not the line.</div>
+</header>
+
+<div id="app">
+  <div class="wrap">
+    <div class="who">
+      <label class="name">Your name<input id="name" autocomplete="name" placeholder="First and last"></label>
+      <label>Shift<select id="shift"><option>Opening</option><option>Mid-Shift</option><option>Closing</option></select></label>
+    </div>
+    <div id="dayBanner" class="banner day" style="display:none"></div>
+    <div id="restoreBanner" class="banner restore" style="display:none"></div>
+    <div id="offlineBanner" class="banner offline" style="display:none">No signal: showing the last list you loaded. Keep counting; your counts are saved on this phone. Submit once you have signal.</div>
+  </div>
+
+  <div class="tools">
+    <div class="search">
+      <input id="q" type="search" placeholder="Search items… (e.g. shrimp)" autocomplete="off">
+      <button id="clearQ" aria-label="Clear search">×</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="wrap">
+    <div id="list"></div>
+    <div id="noResults" class="empty" style="display:none">No items match. Not on the list? Add it under Write-ins at the bottom.</div>
+
+    <div class="section" id="wiSection">
+      <h2>Write-ins — items not on the list</h2>
+      <div class="help">Item name, count and unit. Reviewed weekly.</div>
+      <div id="writeIns"></div>
+      <h2 style="margin-top:14px">Notes (optional)</h2>
+      <textarea id="notes" placeholder="Anything worth flagging (spoilage, damaged case, vendor short)…"></textarea>
+    </div>
+    <div class="pk">D'BO'S DAILY OPS · POWERED BY PROFIT KITCHEN</div>
+  </div>
+</div>
+
+<div class="done" id="done">
+  <div class="check">✓</div>
+  <h2>Count submitted</h2>
+  <p id="doneMsg"></p>
+  <p>The summary email is on its way to Tanya, Lakita and Rainey.</p>
+  <button class="btn gold" onclick="newCount()">Start a new count</button>
+</div>
+
+<div class="bar" id="bar">
+  <div class="prog"><b id="progTxt">0 / 0</b> Daily Priority counted<div class="meter"><span id="meter"></span></div></div>
+  <button class="btn gold" id="submitBtn" onclick="openConfirm()">Submit</button>
+</div>
+
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script>
+/*TRANSPORT_START*/
+// Branded version (dbos.myprofitkitchen.com). Talks to the D'bo's Daily Ops
+// Apps Script: GET ?api=config for the list + pars, POST to submit.
+var API_URL = "https://script.google.com/macros/s/AKfycbzeAh7hHwcDT-yxcFhCAuk5su-udddQhGbF7SF5xiVMPoBkDqZnHHhG1xzCzvJPSOIKLQ/exec";
+var CONFIG_KEY = "dbosCountConfig";
+var DATA = null;
+function sendCount(payload, ok, fail) {
+  fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "submit", data: payload }) })
+    .then(function (r) { return r.json(); })
+    .then(function (res) { if (res && res.ok) ok(res); else fail({ message: (res && res.error) || "The count was not recorded." }); })
+    .catch(function () { fail({ message: "Couldn't reach the server — no signal?" }); });
+}
+function boot() {
+  var cached = null;
+  try { cached = JSON.parse(localStorage.getItem(CONFIG_KEY)); } catch (e) {}
+  fetch(API_URL + "?api=config", { cache: "no-store" })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.sections) throw new Error("bad list");
+      DATA = d;
+      try { localStorage.setItem(CONFIG_KEY, JSON.stringify(d)); } catch (e) {}
+      document.getElementById("loading").style.display = "none";
+      start();
+    })
+    .catch(function () {
+      if (cached && cached.sections) {
+        DATA = cached;
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("offlineBanner").style.display = "block";
+        start();
+      } else {
+        document.getElementById("loadErr").style.display = "block";
+      }
+    });
+}
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+}
+/*TRANSPORT_END*/
+var counts = {}, filter = "all", query = "";
+var HALF = [];
+var STORE_KEY = "dbosFoodCount-" + new Date().toDateString();
+var CHIPS = [["all","All"],["priority","Priority"],["Frozen","Frozen"],["Refrigerated","Refrigerated"],["Dry Storage","Dry"],["specials","Taco / Brunch"],["supplies","Supplies"]];
+
+function zoneOf(sec) {
+  if (sec.group === "taco" || sec.group === "brunch") return "specials";
+  if (sec.group === "supplies") return "supplies";
+  if (sec.title.indexOf("Frozen") !== -1) return "Frozen";
+  if (sec.title.indexOf("Refrigerated") !== -1) return "Refrigerated";
+  return "Dry Storage";
+}
+function isHalf(unit) { return HALF.indexOf(unit) !== -1; }
+function valid(v, unit) { return isHalf(unit) ? /^\d+(\.5)?$/.test(v) : /^\d+$/.test(v); }
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function fmt(n) { return (Math.round(n * 10) / 10).toString(); }
+
+function metaHtml(it) {
+  var name = it[0], unit = it[1], v = counts[name], has = v !== undefined && v !== "";
+  var ok = has && valid(v, unit), par = DATA.pars[name], tag = "";
+  if (has && !ok) tag = '<span class="tag err">' + (isHalf(unit) ? "whole or .5" : "whole number") + '</span>';
+  else if (ok && par !== undefined && Number(v) < par) tag = '<span class="tag below">below par</span>';
+  return esc(unit) + (isHalf(unit) ? " (½ OK)" : "") + (par !== undefined ? " · par " + fmt(par) : "") + tag;
+}
+function rowClass(it) {
+  var v = counts[it[0]], has = v !== undefined && v !== "";
+  return "item" + (has ? (valid(v, it[1]) ? " counted" : " invalid") : "");
+}
+function render() {
+  var html = "", any = false, q = query.toLowerCase();
+  DATA.sections.forEach(function (sec, si) {
+    var z = zoneOf(sec);
+    if (!q) {
+      if (filter === "priority" && sec.group !== "priority") return;
+      if (filter !== "all" && filter !== "priority" && z !== filter) return;
+    }
+    var rows = "";
+    sec.items.forEach(function (it, ii) {
+      var name = it[0], unit = it[1];
+      if (q && name.toLowerCase().indexOf(q) === -1) return;
+      var v = counts[name], has = v !== undefined && v !== "";
+      rows += '<div class="' + rowClass(it) + '" id="row-' + si + '-' + ii + '">' +
+        '<div class="info"><div class="nm">' + esc(name) + '</div>' +
+        '<div class="meta">' + metaHtml(it) + '</div></div>' +
+        '<div class="step"><button type="button" onclick="bump(' + si + ',' + ii + ',-1)">−</button>' +
+        '<input inputmode="' + (isHalf(unit) ? "decimal" : "numeric") + '" value="' + (has ? esc(v) : "") + '" ' +
+        'oninput="setCount(' + si + ',' + ii + ',this.value)" aria-label="' + esc(name) + ' count">' +
+        '<button type="button" onclick="bump(' + si + ',' + ii + ',1)">+</button></div></div>';
+    });
+    if (!rows) return;
+    any = true;
+    var help = sec.group === "taco" ? "Count on Mondays." : sec.group === "brunch" ? "Count on Fridays." :
+      sec.group === "full" ? "After Daily Priority, when time allows." : sec.group === "supplies" ? "When time allows." : "";
+    html += '<div class="section"><h2>' + esc(sec.title) + '</h2>' + (help ? '<div class="help">' + help + '</div>' : "") + rows + '</div>';
+  });
+  document.getElementById("list").innerHTML = html;
+  document.getElementById("noResults").style.display = any ? "none" : "block";
+  document.getElementById("wiSection").style.display = (filter === "all" && !q) ? "block" : "none";
+  updateProgress();
+}
+function setCount(si, ii, val) {
+  var it = DATA.sections[si].items[ii];
+  val = String(val).trim();
+  if (val === "") delete counts[it[0]]; else counts[it[0]] = val;
+  updateRow(si, ii, false);
+  updateProgress(); save();
+}
+function updateRow(si, ii, setInput) {
+  var it = DATA.sections[si].items[ii];
+  var row = document.getElementById("row-" + si + "-" + ii);
+  if (!row) return;
+  row.className = rowClass(it);
+  row.querySelector(".meta").innerHTML = metaHtml(it);
+  if (setInput) row.querySelector("input").value = counts[it[0]] === undefined ? "" : counts[it[0]];
+}
+function bump(si, ii, dir) {
+  var it = DATA.sections[si].items[ii];
+  var step = isHalf(it[1]) ? 0.5 : 1;
+  var cur = Number(counts[it[0]]); if (isNaN(cur)) cur = 0;
+  if (counts[it[0]] === undefined && dir < 0) return;
+  var n = Math.max(0, cur + dir * step);
+  counts[it[0]] = fmt(n);
+  updateRow(si, ii, true); updateProgress(); save();
+}
+function updateProgress() {
+  var p = 0, total = DATA.priorityItems.length, n = 0;
+  DATA.priorityItems.forEach(function (name) { if (counts[name] !== undefined) p++; });
+  for (var k in counts) n++;
+  document.getElementById("progTxt").textContent = p + " / " + total;
+  document.getElementById("meter").style.width = (total ? Math.round(p / total * 100) : 0) + "%";
+}
+function renderChips() {
+  document.getElementById("chips").innerHTML = CHIPS.map(function (c) {
+    return '<button type="button" class="chip' + (filter === c[0] ? " on" : "") + '" onclick="setFilter(\'' + c[0] + '\')">' + c[1] + '</button>';
+  }).join("");
+}
+function setFilter(f) { filter = f; renderChips(); render(); window.scrollTo(0, 0); }
+function renderWriteIns() {
+  var opts = DATA.units.map(function (u) { return '<option>' + esc(u) + '</option>'; }).join("");
+  var html = "";
+  for (var i = 0; i < DATA.writeInCount; i++) {
+    html += '<div class="wi"><input placeholder="Item name" id="wiI' + i + '" oninput="save()">' +
+      '<input placeholder="Count" inputmode="decimal" id="wiC' + i + '" oninput="save()">' +
+      '<select id="wiU' + i + '" onchange="save()"><option value="">Unit…</option>' + opts + '</select></div>';
+  }
+  document.getElementById("writeIns").innerHTML = html;
+}
+function readWriteIns() {
+  var out = [], bad = [];
+  for (var i = 0; i < DATA.writeInCount; i++) {
+    var it = document.getElementById("wiI" + i).value.trim();
+    var c = document.getElementById("wiC" + i).value.trim();
+    var u = document.getElementById("wiU" + i).value;
+    if (!it && !c && !u) continue;
+    if (!it || !c || !u) { bad.push("Write-in " + (i + 1) + ": needs item, count and unit"); continue; }
+    if (!/^\d+(\.5)?$/.test(c)) { bad.push("Write-in \"" + it + "\": count must be a whole number (or .5)"); continue; }
+    out.push({ item: it, count: c, unit: u });
+  }
+  return { list: out, bad: bad };
+}
+
+// ---- draft saving (survives a phone lock or a closed tab, same day only) ----
+var saveTimer = null, submitted = false;
+function save() {
+  clearTimeout(saveTimer);
+  if (submitted) return; // never re-save a count that was already sent
+  saveTimer = setTimeout(function () {
+    try {
+      var wi = [];
+      for (var i = 0; i < DATA.writeInCount; i++) wi.push([document.getElementById("wiI" + i).value, document.getElementById("wiC" + i).value, document.getElementById("wiU" + i).value]);
+      localStorage.setItem(STORE_KEY, JSON.stringify({ counts: counts, name: document.getElementById("name").value,
+        shift: document.getElementById("shift").value, notes: document.getElementById("notes").value, wi: wi }));
+    } catch (e) {}
+  }, 300);
+}
+function restore() {
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    var d = JSON.parse(raw);
+    counts = d.counts || {};
+    document.getElementById("name").value = d.name || "";
+    document.getElementById("shift").value = d.shift || "Opening";
+    document.getElementById("notes").value = d.notes || "";
+    (d.wi || []).forEach(function (w, i) {
+      if (i >= DATA.writeInCount) return;
+      document.getElementById("wiI" + i).value = w[0] || "";
+      document.getElementById("wiC" + i).value = w[1] || "";
+      document.getElementById("wiU" + i).value = w[2] || "";
+    });
+    var n = 0; for (var k in counts) n++;
+    if (n) {
+      var b = document.getElementById("restoreBanner");
+      b.textContent = "Picked up where you left off: " + n + " item" + (n === 1 ? "" : "s") + " already counted (not submitted yet).";
+      b.style.display = "block";
+    }
+  } catch (e) {}
+}
+function clearDraft() { clearTimeout(saveTimer); submitted = true; try { localStorage.removeItem(STORE_KEY); } catch (e) {} }
+
+// ---- submit ----
+function showSheet(html) { document.getElementById("sheet").innerHTML = html; document.getElementById("modal").className = "modal show"; }
+function closeSheet() { document.getElementById("modal").className = "modal"; }
+function openConfirm() {
+  var name = document.getElementById("name").value.trim();
+  if (!name) { showSheet('<h3>Add your name</h3><p>Your name is required before submitting.</p><div class="row"><button class="btn" onclick="closeSheet();document.getElementById(\'name\').focus()">OK</button></div>'); return; }
+  var bad = [];
+  DATA.sections.forEach(function (sec) { sec.items.forEach(function (it) {
+    var v = counts[it[0]]; if (v !== undefined && !valid(v, it[1])) bad.push(it[0] + " — " + (isHalf(it[1]) ? "whole or half cases" : "whole " + it[1].toLowerCase()));
+  }); });
+  var wi = readWriteIns(); bad = bad.concat(wi.bad);
+  if (bad.length) { showSheet('<h3>Fix these first</h3><div class="list">' + bad.map(esc).join("<br>") + '</div><div class="row"><button class="btn" onclick="closeSheet()">OK</button></div>'); return; }
+  var n = 0; for (var k in counts) n++;
+  if (!n && !wi.list.length) { showSheet('<h3>Nothing counted yet</h3><p>Enter at least one count before submitting.</p><div class="row"><button class="btn" onclick="closeSheet()">OK</button></div>'); return; }
+  var missing = DATA.priorityItems.filter(function (p) { return counts[p] === undefined; });
+  var html = '<h3>Submit today\'s count?</h3><p><b>' + n + '</b> item' + (n === 1 ? "" : "s") + ' counted' +
+    (wi.list.length ? ' + ' + wi.list.length + ' write-in' + (wi.list.length === 1 ? "" : "s") : "") + '.</p>';
+  if (missing.length) html += '<p>' + missing.length + ' Daily Priority item' + (missing.length === 1 ? ' is' : 's are') + ' not counted:</p><div class="list">' + missing.map(esc).join("<br>") + '</div>';
+  else html += '<p style="color:#0F7A34;font-weight:700">All Daily Priority items counted.</p>';
+  html += '<div class="row"><button class="btn ghost" onclick="closeSheet()">Keep counting</button><button class="btn gold" id="goBtn" onclick="doSubmit()">Submit</button></div>';
+  showSheet(html);
+}
+var submitId = null;
+function doSubmit() {
+  var go = document.getElementById("goBtn"); if (go) { go.disabled = true; go.textContent = "Sending…"; }
+  document.getElementById("submitBtn").disabled = true;
+  if (!submitId) submitId = String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8);
+  var payload = { id: submitId, name: document.getElementById("name").value.trim(), shift: document.getElementById("shift").value,
+    counts: counts, writeIns: readWriteIns().list, notes: document.getElementById("notes").value.trim() };
+  sendCount(payload, function (res) {
+      closeSheet(); clearDraft();
+      document.getElementById("app").style.display = "none";
+      document.getElementById("bar").style.display = "none";
+      document.getElementById("done").style.display = "block";
+      document.getElementById("doneMsg").textContent = res.message;
+      window.scrollTo(0, 0);
+    }, function (err) {
+      document.getElementById("submitBtn").disabled = false;
+      var go = document.getElementById("goBtn"); if (go) { go.disabled = false; go.textContent = "Submit"; }
+      showSheet('<h3>Not submitted</h3><p>' + esc(err && err.message ? err.message : err) +
+        '</p><p>Your counts are still here. Check your signal and try again.</p><div class="row"><button class="btn" onclick="closeSheet()">OK</button></div>');
+    });
+}
+function newCount() {
+  submitted = false; counts = {}; submitId = null; document.getElementById("notes").value = "";
+  renderWriteIns(); query = ""; document.getElementById("q").value = "";
+  document.getElementById("done").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  document.getElementById("bar").style.display = "flex";
+  document.getElementById("submitBtn").disabled = false;
+  document.getElementById("restoreBanner").style.display = "none";
+  setFilter("all");
+}
+
+// ---- init ----
+function start() {
+  HALF = DATA.halfUnits;
+  var q = document.getElementById("q"), clr = document.getElementById("clearQ");
+  q.addEventListener("input", function () { query = q.value.trim(); clr.style.display = query ? "block" : "none"; render(); });
+  clr.addEventListener("click", function () { q.value = ""; query = ""; clr.style.display = "none"; render(); q.focus(); });
+  document.getElementById("name").addEventListener("input", save);
+  document.getElementById("shift").addEventListener("change", save);
+  document.getElementById("notes").addEventListener("input", save);
+  var day = new Date().getDay(), b = document.getElementById("dayBanner");
+  if (day === 1) { b.textContent = "Monday: also count the Taco Tuesday items (Taco / Brunch tab)."; b.style.display = "block"; }
+  if (day === 5) { b.textContent = "Friday: also count the Sunday Brunch items (Taco / Brunch tab)."; b.style.display = "block"; }
+  renderWriteIns(); restore(); renderChips(); render();
+}
+boot();
+</script>
+</body>
+</html>
