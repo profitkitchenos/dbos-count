@@ -220,9 +220,15 @@ function sendCount(payload, ok, fail) {
 }
 function loadOrders(ok, fail) {
   fetch(API_URL + "?api=orders", { cache: "no-store" })
-    .then(function (r) { return r.json(); })
-    .then(function (d) { if (d && d.deliveries) ok(d); else fail({ message: (d && d.error) || "Couldn't load deliveries." }); })
-    .catch(function () { fail({ message: "Couldn't reach the server — no signal?" }); });
+    .then(function (r) { return r.text(); }, function () { throw { net: true }; })
+    .then(function (t) {
+      var d = null; try { d = JSON.parse(t); } catch (e) {}
+      if (d && d.deliveries) return ok(d);
+      if (d && d.error) return fail({ message: "Server error: " + d.error });
+      if (d && d.sections) return fail({ message: "The script answered with the old version (no order list). Redeploy the WORKING deployment as a New version." });
+      fail({ message: "The script didn't send an order list. Redeploy the WORKING deployment as a New version." });
+    })
+    .catch(function (e) { fail({ message: e && e.net ? "Couldn't reach the server — no signal?" : "Couldn't read the order list." }); });
 }
 function sendReceipt(payload, ok, fail) {
   fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -275,12 +281,14 @@ function isHalf(unit) { return HALF.indexOf(unit) !== -1; }
 function isCase(unit) { return unit === "Cases"; }
 function valid(v, unit) { return isCase(unit) ? /^\d+(\.5)?(\+\d+)?$/.test(v) : isHalf(unit) ? /^\d+(\.5)?$/.test(v) : /^\d+$/.test(v); }
 function looseOf(name) { var l = (DATA.loose || {})[name]; return { unit: (l && l[0]) || "Each", per: (l && Number(l[1])) || 0 }; }
+// What a partial case is counted in, as staff read it: "bags", "sleeves"... and "pieces" instead of "each".
+function looseWord(u) { u = String(u || "Each").toLowerCase(); return u === "each" ? "pieces" : u; }
 function splitCase(v) { var m = /^([^+]*)(?:\+(.*))?$/.exec(v === undefined ? "" : String(v)); return { c: m ? m[1] : "", l: m && m[2] !== undefined ? m[2] : "" }; }
 function caseEq(name, v) { var p = splitCase(v), lo = looseOf(name); return Number(p.c || 0) + (lo.per && p.l ? Number(p.l) / lo.per : 0); }
 function caseText(name, v) {
   var p = splitCase(v), lo = looseOf(name), out = [];
   if (p.c !== "" && (Number(p.c) || !p.l)) out.push(p.c + " cs");
-  if (p.l) out.push(p.l + " " + lo.unit.toLowerCase());
+  if (p.l) out.push(p.l + " " + looseWord(lo.unit));
   return out.join(" + ");
 }
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
@@ -293,7 +301,7 @@ function metaHtml(it) {
   if (has && !ok) tag = '<span class="tag err">' + (isCase(unit) ? "whole numbers" : isHalf(unit) ? "whole or .5" : "whole number") + '</span>';
   else if (ok && par !== undefined && amt < par) tag = '<span class="tag below">below par</span>';
   var lo = looseOf(name);
-  var lbl = isCase(unit) ? (lo.per ? lo.per + " " + esc(lo.unit.toLowerCase()) + " per case" : "Cases + loose " + esc(lo.unit.toLowerCase()))
+  var lbl = isCase(unit) ? (lo.per ? lo.per + " " + esc(looseWord(lo.unit)) + " per case" : "Full cases + open case")
     : esc(unit) + (isHalf(unit) ? " (½ OK)" : "");
   return lbl + (par !== undefined ? " · par " + fmt(par) + (isCase(unit) ? " cs" : "") : "") + tag;
 }
@@ -339,8 +347,8 @@ function render() {
         var p = splitCase(has ? v : ""), lu = looseOf(name).unit;
         rows += '<div class="' + rowClass(it) + ' case" id="row-' + si + '-' + ii + '">' + head +
           '<div class="steps2">' +
-          '<div class="stepc"><div class="cap">Cases</div>' + stepper(si, ii, "c", p.c, name + " cases") + '</div>' +
-          '<div class="stepc"><div class="cap">Loose ' + esc(lu.toLowerCase()) + '</div>' + stepper(si, ii, "l", p.l, name + " loose " + lu) + '</div>' +
+          '<div class="stepc"><div class="cap">Full cases</div>' + stepper(si, ii, "c", p.c, name + " cases") + '</div>' +
+          '<div class="stepc"><div class="cap">Open case · ' + esc(looseWord(lu)) + '</div>' + stepper(si, ii, "l", p.l, name + " open case " + looseWord(lu)) + '</div>' +
           '</div></div>';
       } else {
         rows += '<div class="' + rowClass(it) + '" id="row-' + si + '-' + ii + '">' + head +
@@ -503,7 +511,7 @@ function openConfirm() {
   if (!name) { showSheet('<h3>Add your name</h3><p>Your name is required before submitting.</p><div class="row"><button class="btn" onclick="closeSheet();document.getElementById(\'name\').focus()">OK</button></div>'); return; }
   var bad = [];
   DATA.sections.forEach(function (sec) { sec.items.forEach(function (it) {
-    var v = counts[it[0]]; if (v !== undefined && !valid(v, it[1])) bad.push(it[0] + " — " + (isCase(it[1]) ? "whole numbers for cases and loose" : isHalf(it[1]) ? "whole or half cases" : "whole " + it[1].toLowerCase()));
+    var v = counts[it[0]]; if (v !== undefined && !valid(v, it[1])) bad.push(it[0] + " — " + (isCase(it[1]) ? "whole numbers for full cases and open case" : isHalf(it[1]) ? "whole or half cases" : "whole " + it[1].toLowerCase()));
   }); });
   var wi = readWriteIns(); bad = bad.concat(wi.bad);
   if (bad.length) { showSheet('<h3>Fix these first</h3><div class="list">' + bad.map(esc).join("<br>") + '</div><div class="row"><button class="btn" onclick="closeSheet()">OK</button></div>'); return; }
@@ -584,7 +592,7 @@ function fetchOrders() {
     renderRecv();
   }, function (err) {
     recvLoading = false;
-    document.getElementById("rlist").innerHTML = '<div class="empty">Couldn\'t load deliveries. Check your signal, then <a href="" onclick="fetchOrders();return false;">try again</a>.</div>';
+    document.getElementById("rlist").innerHTML = '<div class="empty">Couldn\'t load deliveries.<br><span style="color:#A6291F">' + esc(err && err.message ? err.message : String(err || "")) + '</span><br><br><a href="" onclick="fetchOrders();return false;">Try again</a></div>';
   });
 }
 function rKey(id) { return "rl-" + String(id).replace(/[^A-Za-z0-9_-]/g, "_"); }
@@ -609,7 +617,7 @@ function renderRecv() {
     d.lines.forEach(function (l) {
       var st = recvState[l.id] || {};
       var opts = '<option value="">No issue</option>' + issues.map(function (x) { return '<option' + (st.issue === x ? " selected" : "") + '>' + esc(x) + '</option>'; }).join("");
-      var hint = isCase(l.unit) ? "Received: cases, or cases+loose " + esc((l.looseUnit || "each").toLowerCase()) + " like 2+3" : "Received (" + esc(l.unit.toLowerCase()) + ")";
+      var hint = isCase(l.unit) ? "Received: full cases. Part of a case? Type cases + " + esc(looseWord(l.looseUnit)) + ", e.g. 2+3" : "Received (" + esc(l.unit.toLowerCase()) + ")";
       html += '<div class="rline' + rClass(l) + '" id="' + rKey(l.id) + '">' +
         '<div class="top"><div class="nm">' + esc(l.item) + '<span>Ordered: ' + esc(l.qtyText) + (l.note ? ' · ' + esc(l.note) : '') + '</span></div>' +
         '<button type="button" class="got" onclick="toggleGot(\'' + esc(l.id) + '\')">' + (st.got ? "✓ Got it" : "Got it") + '</button></div>' +
@@ -659,7 +667,7 @@ function recvLines() {
     if (!st || (!st.got && !st.issue)) return;
     var rec = String(st.rec !== undefined ? st.rec : l.qty).replace(/\s+/g, "");
     if (st.issue === "Not delivered") rec = "0";
-    if (!rvalid(rec, l.unit)) { bad.push(l.item + " — " + (isCase(l.unit) ? "cases, or cases+loose like 2+3" : "whole number")); return; }
+    if (!rvalid(rec, l.unit)) { bad.push(l.item + " — " + (isCase(l.unit) ? "full cases, or cases + open case like 2+3" : "whole number")); return; }
     out.push({ id: l.id, item: l.item, ordered: l.qtyText, received: rec, issue: st.issue || "", note: (st.note || "").trim() });
   }); });
   return { list: out, bad: bad };
