@@ -57,6 +57,37 @@
   .step button:first-child { border-radius:10px 0 0 10px; }
   .step button:last-child { border-radius:0 10px 10px 0; }
   .step input { width:58px; height:44px; border:1px solid #CFC8B6; border-left:0; border-right:0; text-align:center; font-size:18px; font-weight:700; }
+  .item.case { flex-wrap:wrap; }
+  .item.case .info { flex:1 1 100%; }
+  .steps2 { display:flex; gap:12px; width:100%; }
+  .stepc { flex:1; }
+  .stepc .cap { font-size:11px; font-weight:700; color:var(--grey); text-transform:uppercase; letter-spacing:.4px; margin:0 0 3px 2px; }
+  .stepc .step input { width:100%; min-width:0; flex:1; }
+  .stepc .step { width:100%; }
+  .modes { display:flex; gap:0; margin-top:10px; background:rgba(255,255,255,.12); border-radius:10px; padding:3px; }
+  .mode { flex:1; border:0; background:transparent; color:#fff; font-size:15px; font-weight:700; padding:9px 6px; border-radius:8px; }
+  .mode.on { background:var(--gold); color:var(--char); }
+  .dlv { background:#fff; border:1px solid var(--line); border-radius:12px; margin-top:14px; overflow:hidden; }
+  .dlv .dh { display:flex; align-items:center; gap:8px; padding:10px 12px; background:#F7F5EF; border-bottom:1px solid var(--line); }
+  .dlv .dh .t { flex:1; font-weight:700; }
+  .dlv .dh .t span { display:block; font-size:12px; font-weight:400; color:var(--grey); }
+  .dlv .dh button { border:1px solid #CFC8B6; background:#fff; border-radius:8px; padding:7px 10px; font-size:13px; font-weight:700; color:var(--char); }
+  .rline { padding:10px 12px; border-bottom:1px solid #F0ECE2; border-left:4px solid transparent; }
+  .rline:last-child { border-bottom:0; }
+  .rline.ok { border-left-color:var(--ok); background:#F6FBF7; }
+  .rline.prob { border-left-color:var(--bad); background:#FFF7F6; }
+  .rline .top { display:flex; align-items:center; gap:10px; }
+  .rline .nm { flex:1; font-weight:600; font-size:15px; line-height:1.25; }
+  .rline .nm span { display:block; font-size:12px; font-weight:400; color:var(--grey); margin-top:2px; }
+  .got { min-width:92px; height:44px; border:2px solid var(--ok); color:var(--ok); background:#fff; border-radius:10px; font-size:15px; font-weight:700; }
+  .rline.ok .got { background:var(--ok); color:#fff; }
+  .rline .more { display:flex; gap:8px; margin-top:8px; }
+  .rline .more input, .rline .more select { padding:9px 10px; font-size:15px; border:1px solid #CFC8B6; border-radius:8px; background:#fff; min-width:0; }
+  .rline .more .q { width:96px; text-align:center; font-weight:700; }
+  .rline .more select { flex:1; }
+  .rline .rnote { width:100%; margin-top:8px; padding:9px 10px; font-size:15px; border:1px solid #CFC8B6; border-radius:8px; display:none; }
+  .rline.prob .rnote, .rline.noted .rnote { display:block; }
+  .rline .hint { font-size:12px; color:var(--grey); margin-top:4px; }
   .empty { text-align:center; color:var(--grey); padding:30px 10px; }
   .wi { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:8px; display:grid; grid-template-columns:1fr 80px 110px; gap:8px; }
   .wi input, .wi select, textarea { padding:10px; font-size:16px; border:1px solid #CFC8B6; border-radius:8px; width:100%; background:#fff; }
@@ -94,7 +125,8 @@
 <div class="loading" id="loading"><img src="icons/icon-192.png" alt=""><div>Loading today's count list…</div><div class="err" id="loadErr">Couldn't load the list. Check your signal, then <a href="" onclick="location.reload();return false;">try again</a>.</div></div>
 <header>
   <div class="kicker">D'bo's Daily Ops</div>
-  <h1>Daily AM Food Count</h1>
+  <h1 id="pageTitle">Daily AM Food Count</h1>
+  <div class="modes"><button type="button" class="mode on" id="modeCount" onclick="setMode('count')">Count</button><button type="button" class="mode" id="modeRecv" onclick="setMode('recv')">Receive Delivery</button></div>
 </header>
 
 <div id="app">
@@ -131,6 +163,27 @@
   </div>
 </div>
 
+<div id="recv" style="display:none">
+  <div class="wrap">
+    <div class="who">
+      <label class="name">Your name<input id="rname" autocomplete="name" placeholder="First and last"></label>
+    </div>
+    <div class="banner day" style="cursor:default">Check each item as it comes off the truck, <b>before signing the invoice</b>. Short, damaged or wrong? Pick the issue and fix the amount.</div>
+    <div id="rlist"><div class="empty">Loading deliveries…</div></div>
+    <div class="section" id="rnoteSection" style="display:none">
+      <h2>Delivery note (optional)</h2>
+      <textarea id="rnote" placeholder="Driver, temperature, anything else worth knowing…"></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="done" id="rdone">
+  <div class="check">✓</div>
+  <h2>Delivery checked in</h2>
+  <p id="rdoneMsg"></p>
+  <button class="btn gold" onclick="recvAgain()">Back to deliveries</button>
+</div>
+
 <div class="done" id="done">
   <div class="check">✓</div>
   <h2>Count submitted</h2>
@@ -142,6 +195,11 @@
 <div class="bar" id="bar">
   <div class="prog"><b id="progTxt">0 / 0</b> Daily Priority counted<div class="meter"><span id="meter"></span></div></div>
   <button class="btn gold" id="submitBtn" onclick="openConfirm()">Submit</button>
+</div>
+
+<div class="bar" id="rbar" style="display:none">
+  <div class="prog"><b id="rprogTxt">0 / 0</b> items checked<div class="meter"><span id="rmeter"></span></div></div>
+  <button class="btn gold" id="rsubmitBtn" onclick="openRecvConfirm()">Submit</button>
 </div>
 
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
@@ -158,6 +216,19 @@ function sendCount(payload, ok, fail) {
     body: JSON.stringify({ action: "submit", data: payload }) })
     .then(function (r) { return r.json(); })
     .then(function (res) { if (res && res.ok) ok(res); else fail({ message: (res && res.error) || "The count was not recorded." }); })
+    .catch(function () { fail({ message: "Couldn't reach the server — no signal?" }); });
+}
+function loadOrders(ok, fail) {
+  fetch(API_URL + "?api=orders", { cache: "no-store" })
+    .then(function (r) { return r.json(); })
+    .then(function (d) { if (d && d.deliveries) ok(d); else fail({ message: (d && d.error) || "Couldn't load deliveries." }); })
+    .catch(function () { fail({ message: "Couldn't reach the server — no signal?" }); });
+}
+function sendReceipt(payload, ok, fail) {
+  fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "receive", data: payload }) })
+    .then(function (r) { return r.json(); })
+    .then(function (res) { if (res && res.ok) ok(res); else fail({ message: (res && res.error) || "The delivery was not recorded." }); })
     .catch(function () { fail({ message: "Couldn't reach the server — no signal?" }); });
 }
 function boot() {
@@ -200,16 +271,31 @@ function zoneOf(sec) {
   return "Dry Storage";
 }
 function isHalf(unit) { return HALF.indexOf(unit) !== -1; }
-function valid(v, unit) { return isHalf(unit) ? /^\d+(\.5)?$/.test(v) : /^\d+$/.test(v); }
+// Case items: "2" = 2 cases, "2+3" = 2 cases + 3 loose (bags, sleeves...), "0+3" = loose only.
+function isCase(unit) { return unit === "Cases"; }
+function valid(v, unit) { return isCase(unit) ? /^\d+(\.5)?(\+\d+)?$/.test(v) : isHalf(unit) ? /^\d+(\.5)?$/.test(v) : /^\d+$/.test(v); }
+function looseOf(name) { var l = (DATA.loose || {})[name]; return { unit: (l && l[0]) || "Each", per: (l && Number(l[1])) || 0 }; }
+function splitCase(v) { var m = /^([^+]*)(?:\+(.*))?$/.exec(v === undefined ? "" : String(v)); return { c: m ? m[1] : "", l: m && m[2] !== undefined ? m[2] : "" }; }
+function caseEq(name, v) { var p = splitCase(v), lo = looseOf(name); return Number(p.c || 0) + (lo.per && p.l ? Number(p.l) / lo.per : 0); }
+function caseText(name, v) {
+  var p = splitCase(v), lo = looseOf(name), out = [];
+  if (p.c !== "" && (Number(p.c) || !p.l)) out.push(p.c + " cs");
+  if (p.l) out.push(p.l + " " + lo.unit.toLowerCase());
+  return out.join(" + ");
+}
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function fmt(n) { return (Math.round(n * 10) / 10).toString(); }
 
 function metaHtml(it) {
   var name = it[0], unit = it[1], v = counts[name], has = v !== undefined && v !== "";
   var ok = has && valid(v, unit), par = DATA.pars[name], tag = "";
-  if (has && !ok) tag = '<span class="tag err">' + (isHalf(unit) ? "whole or .5" : "whole number") + '</span>';
-  else if (ok && par !== undefined && Number(v) < par) tag = '<span class="tag below">below par</span>';
-  return esc(unit) + (isHalf(unit) ? " (½ OK)" : "") + (par !== undefined ? " · par " + fmt(par) : "") + tag;
+  var amt = has && ok ? (isCase(unit) ? caseEq(name, v) : Number(v)) : 0;
+  if (has && !ok) tag = '<span class="tag err">' + (isCase(unit) ? "whole numbers" : isHalf(unit) ? "whole or .5" : "whole number") + '</span>';
+  else if (ok && par !== undefined && amt < par) tag = '<span class="tag below">below par</span>';
+  var lo = looseOf(name);
+  var lbl = isCase(unit) ? (lo.per ? lo.per + " " + esc(lo.unit.toLowerCase()) + " per case" : "Cases + loose " + esc(lo.unit.toLowerCase()))
+    : esc(unit) + (isHalf(unit) ? " (½ OK)" : "");
+  return lbl + (par !== undefined ? " · par " + fmt(par) + (isCase(unit) ? " cs" : "") : "") + tag;
 }
 function rowClass(it) {
   var v = counts[it[0]], has = v !== undefined && v !== "";
@@ -247,13 +333,22 @@ function render() {
       else if (!passesFilter(it, sec)) return;
       var v = counts[name], has = v !== undefined && v !== "";
       var why = hits.length ? '<div class="meta">' + hits.map(function (t) { return '<span class="tag match">' + esc(t) + '</span>'; }).join("") + '</div>' : "";
-      rows += '<div class="' + rowClass(it) + '" id="row-' + si + '-' + ii + '">' +
-        '<div class="info"><div class="nm">' + esc(name) + '</div>' +
-        '<div class="meta">' + metaHtml(it) + '</div>' + why + '</div>' +
-        '<div class="step"><button type="button" onclick="bump(' + si + ',' + ii + ',-1)">−</button>' +
-        '<input inputmode="' + (isHalf(unit) ? "decimal" : "numeric") + '" value="' + (has ? esc(v) : "") + '" ' +
-        'oninput="setCount(' + si + ',' + ii + ',this.value)" aria-label="' + esc(name) + ' count">' +
-        '<button type="button" onclick="bump(' + si + ',' + ii + ',1)">+</button></div></div>';
+      var head = '<div class="info"><div class="nm">' + esc(name) + '</div>' +
+        '<div class="meta">' + metaHtml(it) + '</div>' + why + '</div>';
+      if (isCase(unit)) {
+        var p = splitCase(has ? v : ""), lu = looseOf(name).unit;
+        rows += '<div class="' + rowClass(it) + ' case" id="row-' + si + '-' + ii + '">' + head +
+          '<div class="steps2">' +
+          '<div class="stepc"><div class="cap">Cases</div>' + stepper(si, ii, "c", p.c, name + " cases") + '</div>' +
+          '<div class="stepc"><div class="cap">Loose ' + esc(lu.toLowerCase()) + '</div>' + stepper(si, ii, "l", p.l, name + " loose " + lu) + '</div>' +
+          '</div></div>';
+      } else {
+        rows += '<div class="' + rowClass(it) + '" id="row-' + si + '-' + ii + '">' + head +
+          '<div class="step"><button type="button" onclick="bump(' + si + ',' + ii + ',-1)">−</button>' +
+          '<input inputmode="' + (isHalf(unit) ? "decimal" : "numeric") + '" value="' + (has ? esc(v) : "") + '" ' +
+          'oninput="setCount(' + si + ',' + ii + ',this.value)" aria-label="' + esc(name) + ' count">' +
+          '<button type="button" onclick="bump(' + si + ',' + ii + ',1)">+</button></div></div>';
+      }
     });
     if (!rows) return;
     any = true;
@@ -266,6 +361,35 @@ function render() {
   document.getElementById("wiSection").style.display = (filter === "all" && !q) ? "block" : "none";
   updateProgress();
 }
+function stepper(si, ii, part, val, label) {
+  return '<div class="step"><button type="button" onclick="bumpCase(' + si + ',' + ii + ',\'' + part + '\',-1)">−</button>' +
+    '<input inputmode="numeric" data-part="' + part + '" value="' + esc(val) + '" ' +
+    'oninput="setCasePart(' + si + ',' + ii + ',\'' + part + '\',this.value)" aria-label="' + esc(label) + '">' +
+    '<button type="button" onclick="bumpCase(' + si + ',' + ii + ',\'' + part + '\',1)">+</button></div>';
+}
+// Joins the two boxes into one value: "2", "2+3" or "0+3". Both blank = not counted.
+function joinCase(c, l) {
+  c = String(c).trim(); l = String(l).trim();
+  if (c === "" && l === "") return "";
+  if (l === "") return c;
+  return (c === "" ? "0" : c) + "+" + l;
+}
+function setCasePart(si, ii, part, val) {
+  var it = DATA.sections[si].items[ii], p = splitCase(counts[it[0]]);
+  p[part] = String(val).trim();
+  var v = joinCase(p.c, p.l);
+  if (v === "") delete counts[it[0]]; else counts[it[0]] = v;
+  updateRow(si, ii, false); updateProgress(); save();
+}
+function bumpCase(si, ii, part, dir) {
+  var it = DATA.sections[si].items[ii], p = splitCase(counts[it[0]]);
+  if (p[part] === "" && dir < 0) return;
+  var cur = Math.floor(Number(p[part])); if (isNaN(cur)) cur = 0;
+  p[part] = String(Math.max(0, cur + dir));
+  var v = joinCase(p.c, p.l);
+  if (v === "") delete counts[it[0]]; else counts[it[0]] = v;
+  updateRow(si, ii, true); updateProgress(); save();
+}
 function setCount(si, ii, val) {
   var it = DATA.sections[si].items[ii];
   val = String(val).trim();
@@ -277,9 +401,14 @@ function updateRow(si, ii, setInput) {
   var it = DATA.sections[si].items[ii];
   var row = document.getElementById("row-" + si + "-" + ii);
   if (!row) return;
-  row.className = rowClass(it);
+  row.className = rowClass(it) + (isCase(it[1]) ? " case" : "");
   row.querySelector(".meta").innerHTML = metaHtml(it);
-  if (setInput) row.querySelector("input").value = counts[it[0]] === undefined ? "" : counts[it[0]];
+  if (!setInput) return;
+  if (isCase(it[1])) {
+    var p = splitCase(counts[it[0]]);
+    row.querySelector('input[data-part="c"]').value = p.c;
+    row.querySelector('input[data-part="l"]').value = p.l;
+  } else row.querySelector("input").value = counts[it[0]] === undefined ? "" : counts[it[0]];
 }
 function bump(si, ii, dir) {
   var it = DATA.sections[si].items[ii];
@@ -374,7 +503,7 @@ function openConfirm() {
   if (!name) { showSheet('<h3>Add your name</h3><p>Your name is required before submitting.</p><div class="row"><button class="btn" onclick="closeSheet();document.getElementById(\'name\').focus()">OK</button></div>'); return; }
   var bad = [];
   DATA.sections.forEach(function (sec) { sec.items.forEach(function (it) {
-    var v = counts[it[0]]; if (v !== undefined && !valid(v, it[1])) bad.push(it[0] + " — " + (isHalf(it[1]) ? "whole or half cases" : "whole " + it[1].toLowerCase()));
+    var v = counts[it[0]]; if (v !== undefined && !valid(v, it[1])) bad.push(it[0] + " — " + (isCase(it[1]) ? "whole numbers for cases and loose" : isHalf(it[1]) ? "whole or half cases" : "whole " + it[1].toLowerCase()));
   }); });
   var wi = readWriteIns(); bad = bad.concat(wi.bad);
   if (bad.length) { showSheet('<h3>Fix these first</h3><div class="list">' + bad.map(esc).join("<br>") + '</div><div class="row"><button class="btn" onclick="closeSheet()">OK</button></div>'); return; }
@@ -415,10 +544,171 @@ function newCount() {
   document.getElementById("done").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("bar").style.display = "flex";
+  document.querySelector(".tools").style.display = "block";
   document.getElementById("submitBtn").disabled = false;
   document.getElementById("restoreBanner").style.display = "none";
   setFilter("all");
 }
+
+// ---- receive delivery (v38) ----
+var mode = "count", RECV = null, recvState = {}, recvSubmitId = null, recvLoading = false;
+function setMode(m) {
+  mode = m;
+  document.getElementById("modeCount").className = "mode" + (m === "count" ? " on" : "");
+  document.getElementById("modeRecv").className = "mode" + (m === "recv" ? " on" : "");
+  document.getElementById("pageTitle").textContent = m === "count" ? "Daily AM Food Count" : "Receive Delivery";
+  var countDone = document.getElementById("done").style.display === "block";
+  document.getElementById("app").style.display = m === "count" && !countDone ? "block" : "none";
+  document.getElementById("bar").style.display = m === "count" && !countDone ? "flex" : "none";
+  document.querySelector(".tools").style.display = m === "count" && !countDone ? "block" : "none";
+  if (m === "count") document.getElementById("done").style.display = countDone ? "block" : "none";
+  else document.getElementById("done").style.display = "none";
+  document.getElementById("recv").style.display = m === "recv" ? "block" : "none";
+  document.getElementById("rdone").style.display = "none";
+  document.getElementById("rbar").style.display = m === "recv" && RECV && RECV.deliveries.length ? "flex" : "none";
+  if (m === "recv") {
+    var rn = document.getElementById("rname");
+    if (!rn.value) rn.value = document.getElementById("name").value;
+    if (!RECV) fetchOrders();
+  }
+  window.scrollTo(0, 0);
+}
+function fetchOrders() {
+  if (recvLoading) return;
+  recvLoading = true;
+  document.getElementById("rlist").innerHTML = '<div class="empty">Loading deliveries…</div>';
+  loadOrders(function (d) {
+    recvLoading = false;
+    RECV = d && d.deliveries ? d : { deliveries: [], issues: [] };
+    recvState = {};
+    renderRecv();
+  }, function (err) {
+    recvLoading = false;
+    document.getElementById("rlist").innerHTML = '<div class="empty">Couldn\'t load deliveries. Check your signal, then <a href="" onclick="fetchOrders();return false;">try again</a>.</div>';
+  });
+}
+function rKey(id) { return "rl-" + String(id).replace(/[^A-Za-z0-9_-]/g, "_"); }
+function lineById(id) {
+  var found = null;
+  RECV.deliveries.forEach(function (d) { d.lines.forEach(function (l) { if (l.id === id) found = l; }); });
+  return found;
+}
+function rvalid(v, unit) { return isCase(unit) ? /^\d+(\.5)?(\+\d+)?$/.test(v) : /^\d+$/.test(v); }
+function renderRecv() {
+  var issues = (RECV.issues && RECV.issues.length ? RECV.issues : (DATA.issues || []));
+  if (!RECV.deliveries.length) {
+    document.getElementById("rlist").innerHTML = '<div class="empty">No open deliveries right now.<br>When an order is marked as placed in the Daily Ops Sheet, it shows up here.<br><br><a href="" onclick="RECV=null;fetchOrders();return false;">Refresh</a></div>';
+    document.getElementById("rnoteSection").style.display = "none";
+    document.getElementById("rbar").style.display = "none";
+    return;
+  }
+  var html = "";
+  RECV.deliveries.forEach(function (d, di) {
+    html += '<div class="dlv"><div class="dh"><div class="t">' + esc(d.vendor) + '<span>' + esc(d.expected) + ' · ' + d.lines.length + ' item' + (d.lines.length === 1 ? "" : "s") + '</span></div>' +
+      '<button type="button" onclick="gotAll(' + di + ')">All received</button></div>';
+    d.lines.forEach(function (l) {
+      var st = recvState[l.id] || {};
+      var opts = '<option value="">No issue</option>' + issues.map(function (x) { return '<option' + (st.issue === x ? " selected" : "") + '>' + esc(x) + '</option>'; }).join("");
+      var hint = isCase(l.unit) ? "Received: cases, or cases+loose " + esc((l.looseUnit || "each").toLowerCase()) + " like 2+3" : "Received (" + esc(l.unit.toLowerCase()) + ")";
+      html += '<div class="rline' + rClass(l) + '" id="' + rKey(l.id) + '">' +
+        '<div class="top"><div class="nm">' + esc(l.item) + '<span>Ordered: ' + esc(l.qtyText) + (l.note ? ' · ' + esc(l.note) : '') + '</span></div>' +
+        '<button type="button" class="got" onclick="toggleGot(\'' + esc(l.id) + '\')">' + (st.got ? "✓ Got it" : "Got it") + '</button></div>' +
+        '<div class="more"><input class="q" inputmode="decimal" value="' + esc(st.rec !== undefined ? st.rec : l.qty) + '" oninput="setRecQty(\'' + esc(l.id) + '\',this.value)" aria-label="' + esc(l.item) + ' received">' +
+        '<select onchange="setIssue(\'' + esc(l.id) + '\',this.value)" aria-label="Issue">' + opts + '</select></div>' +
+        '<div class="hint">' + hint + '</div>' +
+        '<input class="rnote" placeholder="What happened? (e.g. 1 case damaged, sent turkey instead)" value="' + esc(st.note || "") + '" oninput="setRecNote(\'' + esc(l.id) + '\',this.value)">' +
+        '</div>';
+    });
+    html += '</div>';
+  });
+  document.getElementById("rlist").innerHTML = html;
+  document.getElementById("rnoteSection").style.display = "block";
+  document.getElementById("rbar").style.display = mode === "recv" ? "flex" : "none";
+  updateRecvProgress();
+}
+function rClass(l) {
+  var st = recvState[l.id] || {};
+  var rec = st.rec !== undefined ? st.rec : l.qty;
+  var prob = !!st.issue || (st.got && rec !== l.qty) || (st.rec !== undefined && !rvalid(String(st.rec).replace(/\s+/g, ""), l.unit));
+  return prob ? " prob" : (st.got ? " ok" : "") + (st.note ? " noted" : "");
+}
+function refreshLine(id) {
+  var el = document.getElementById(rKey(id)), l = lineById(id), st = recvState[id] || {};
+  if (!el || !l) return;
+  el.className = "rline" + rClass(l);
+  el.querySelector(".got").textContent = st.got ? "✓ Got it" : "Got it";
+  updateRecvProgress();
+}
+function toggleGot(id) { var st = recvState[id] = recvState[id] || {}; st.got = !st.got; refreshLine(id); }
+function gotAll(di) {
+  RECV.deliveries[di].lines.forEach(function (l) { var st = recvState[l.id] = recvState[l.id] || {}; if (!st.issue) st.got = true; refreshLine(l.id); });
+}
+function setRecQty(id, v) { var st = recvState[id] = recvState[id] || {}; st.rec = String(v).trim(); if (!st.got && st.rec !== "") st.got = true; refreshLine(id); }
+function setIssue(id, v) {
+  var st = recvState[id] = recvState[id] || {}; st.issue = v;
+  var el = document.getElementById(rKey(id));
+  if (v === "Not delivered") { st.rec = "0"; if (el) el.querySelector(".q").value = "0"; }
+  if (v) st.got = true;
+  refreshLine(id);
+}
+function setRecNote(id, v) { var st = recvState[id] = recvState[id] || {}; st.note = v; }
+function recvLines() {
+  var out = [], bad = [];
+  RECV.deliveries.forEach(function (d) { d.lines.forEach(function (l) {
+    var st = recvState[l.id];
+    if (!st || (!st.got && !st.issue)) return;
+    var rec = String(st.rec !== undefined ? st.rec : l.qty).replace(/\s+/g, "");
+    if (st.issue === "Not delivered") rec = "0";
+    if (!rvalid(rec, l.unit)) { bad.push(l.item + " — " + (isCase(l.unit) ? "cases, or cases+loose like 2+3" : "whole number")); return; }
+    out.push({ id: l.id, item: l.item, ordered: l.qtyText, received: rec, issue: st.issue || "", note: (st.note || "").trim() });
+  }); });
+  return { list: out, bad: bad };
+}
+function updateRecvProgress() {
+  var total = 0, n = 0;
+  RECV.deliveries.forEach(function (d) { d.lines.forEach(function (l) { total++; var st = recvState[l.id]; if (st && (st.got || st.issue)) n++; }); });
+  document.getElementById("rprogTxt").textContent = n + " / " + total;
+  document.getElementById("rmeter").style.width = (total ? Math.round(n / total * 100) : 0) + "%";
+}
+function openRecvConfirm() {
+  var name = document.getElementById("rname").value.trim();
+  if (!name) { showSheet('<h3>Add your name</h3><p>Your name is required before submitting.</p><div class="row"><button class="btn" onclick="closeSheet();document.getElementById(\'rname\').focus()">OK</button></div>'); return; }
+  var r = recvLines();
+  if (r.bad.length) { showSheet('<h3>Fix these first</h3><div class="list">' + r.bad.map(esc).join("<br>") + '</div><div class="row"><button class="btn" onclick="closeSheet()">OK</button></div>'); return; }
+  if (!r.list.length) { showSheet('<h3>Nothing checked yet</h3><p>Tap <b>Got it</b> on each item that came in, or pick an issue.</p><div class="row"><button class="btn" onclick="closeSheet()">OK</button></div>'); return; }
+  var probs = r.list.filter(function (x) { return x.issue || x.received !== String(lineById(x.id).qty).replace(/\s+/g, ""); });
+  var html = '<h3>Submit this delivery?</h3><p><b>' + r.list.length + '</b> item' + (r.list.length === 1 ? "" : "s") + ' checked in.</p>';
+  if (probs.length) html += '<p>' + probs.length + ' with an issue — Tanya and Lakita get an email:</p><div class="list">' +
+    probs.map(function (x) { return esc(x.item) + " — ordered " + esc(x.ordered) + ", got " + esc(x.received) + (x.issue ? " (" + esc(x.issue) + ")" : ""); }).join("<br>") + '</div>';
+  else html += '<p style="color:#0F7A34;font-weight:700">Everything checked matches the order.</p>';
+  html += '<p>Items you didn\'t check stay open for the next delivery.</p>';
+  html += '<div class="row"><button class="btn ghost" onclick="closeSheet()">Keep checking</button><button class="btn gold" id="rgoBtn" onclick="doRecvSubmit()">Submit</button></div>';
+  showSheet(html);
+}
+function doRecvSubmit() {
+  var go = document.getElementById("rgoBtn"); if (go) { go.disabled = true; go.textContent = "Sending…"; }
+  document.getElementById("rsubmitBtn").disabled = true;
+  if (!recvSubmitId) recvSubmitId = String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8);
+  var r = recvLines();
+  var payload = { id: recvSubmitId, name: document.getElementById("rname").value.trim(), note: document.getElementById("rnote").value.trim(),
+    lines: r.list.map(function (x) { return { id: x.id, received: x.received, issue: x.issue, note: x.note }; }) };
+  sendReceipt(payload, function (res) {
+    closeSheet(); recvSubmitId = null;
+    document.getElementById("rsubmitBtn").disabled = false;
+    document.getElementById("recv").style.display = "none";
+    document.getElementById("rbar").style.display = "none";
+    document.getElementById("rdone").style.display = "block";
+    document.getElementById("rdoneMsg").textContent = res.message;
+    document.getElementById("rnote").value = "";
+    window.scrollTo(0, 0);
+  }, function (err) {
+    document.getElementById("rsubmitBtn").disabled = false;
+    var g = document.getElementById("rgoBtn"); if (g) { g.disabled = false; g.textContent = "Submit"; }
+    showSheet('<h3>Not submitted</h3><p>' + esc(err && err.message ? err.message : err) +
+      '</p><p>Your check-offs are still here. Check your signal and try again.</p><div class="row"><button class="btn" onclick="closeSheet()">OK</button></div>');
+  });
+}
+function recvAgain() { RECV = null; recvState = {}; document.getElementById("rdone").style.display = "none"; setMode("recv"); }
 
 // ---- init ----
 function start() {
@@ -433,6 +723,7 @@ function start() {
   if (day === 1) { b.innerHTML = "Today is Monday: make sure to count the <b>Taco Tuesday</b> items."; b.style.display = "block"; b.onclick = function () { setFilter("taco"); }; }
   if (day === 5) { b.innerHTML = "Today is Friday: make sure to count the <b>Sunday Brunch</b> items."; b.style.display = "block"; b.onclick = function () { setFilter("brunch"); }; }
   renderWriteIns(); restore(); renderChips(); render();
+  if (/[?&#]receive\b/.test(location.search + location.hash)) setMode("recv");
 }
 boot();
 </script>

@@ -1,7 +1,7 @@
 // D'bo's Count — offline helper. Keeps the app shell on the phone so it
 // opens instantly and still opens with no signal in the walk-in. The count
 // list and submissions always go to the Apps Script (never cached here).
-var CACHE = "dbos-count-v2";
+var CACHE = "dbos-count-v3";
 var SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));

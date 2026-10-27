@@ -2,7 +2,7 @@
 
 Branded, installable count app for D'bo's Daiquiris, Wings & Seafood (Jacksonville).
 Powered by Profit Kitchen. The page lives here on GitHub Pages; the data lives in the
-"D'bo's Daily Ops" Google Sheet via the Apps Script (v35 or later).
+"D'bo's Daily Ops" Google Sheet via the Apps Script (v38 or later).
 
 ## What's in this folder
 | File | What it does |
