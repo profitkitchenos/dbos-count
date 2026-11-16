@@ -702,7 +702,7 @@ function lineById(id) {
   RECV.deliveries.forEach(function (d) { d.lines.forEach(function (l) { if (l.id === id) found = l; }); });
   return found;
 }
-function rvalid(v, unit) { return isCase(unit) ? /^\d+(\.5)?(\+\d+)?$/.test(v) : /^\d+$/.test(v); }
+function rvalid(v, unit) { return valid(v, unit); }
 function renderRecv() {
   var issues = (RECV.issues && RECV.issues.length ? RECV.issues : (DATA.issues || []));
   if (!RECV.deliveries.length) {
