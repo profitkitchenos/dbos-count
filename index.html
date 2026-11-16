@@ -88,6 +88,18 @@
   .rline .rnote { width:100%; margin-top:8px; padding:9px 10px; font-size:15px; border:1px solid #CFC8B6; border-radius:8px; display:none; }
   .rline.prob .rnote, .rline.noted .rnote { display:block; }
   .rline .hint { font-size:12px; color:var(--grey); margin-top:4px; }
+  .cathead { display:flex; align-items:center; justify-content:space-between; background:var(--char); color:#fff;
+             padding:9px 12px; border-radius:10px; margin:18px 0 8px; font-size:15px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; }
+  .cathead span { font-size:12px; font-weight:600; color:#D7D3C8; text-transform:none; letter-spacing:0; }
+  .cathead.done span { color:#9BE3B0; }
+  .section h2.sub { font-size:12px; color:var(--grey); border-left-color:#CFC8B6; }
+  .star { color:#C99A2E; margin-right:3px; }
+  .item.q { flex-wrap:wrap; }
+  .item.q .info { flex:1 1 0; }
+  .fr { display:flex; align-items:center; gap:6px; width:100%; margin-top:4px; }
+  .fr .lbl { font-size:11px; font-weight:700; color:var(--grey); text-transform:uppercase; letter-spacing:.4px; margin-right:2px; }
+  .fr button { min-width:44px; height:32px; padding:0 10px; border-radius:17px; border:1px solid #CFC8B6; background:#fff; font-size:16px; font-weight:800; color:var(--char); }
+  .fr button.on { background:var(--gold); border-color:var(--gold); }
   .empty { text-align:center; color:var(--grey); padding:30px 10px; }
   .wi { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:8px; display:grid; grid-template-columns:1fr 80px 110px; gap:8px; }
   .wi input, .wi select, textarea { padding:10px; font-size:16px; border:1px solid #CFC8B6; border-radius:8px; width:100%; background:#fff; }
@@ -267,7 +279,17 @@ if ("serviceWorker" in navigator) {
 var counts = {}, filter = "all", query = "";
 var HALF = [];
 var STORE_KEY = "dbosFoodCount-" + new Date().toDateString();
-var CHIPS = [["all","All"],["priority","Priority"],["Frozen","Frozen"],["Refrigerated","Refrigerated"],["Dry Storage","Dry"],["taco","Taco Tuesday"],["brunch","Sunday Brunch"],["supplies","Supplies"]];
+var CHIPS = [["all","All"],["priority","★ Priority"],["Frozen","Frozen"],["Refrigerated","Refrigerated"],["Sauces","Sauces"],["Dry Goods","Dry Goods"],["taco","Taco Tuesday"],["brunch","Sunday Brunch"],["Supplies","Supplies"]];
+// v40: each section has a category (cat). Older lists fall back to the title.
+function catOf(sec) {
+  if (sec.cat) return sec.cat;
+  if (sec.group === "taco") return "Taco Tuesday";
+  if (sec.group === "brunch") return "Sunday Brunch";
+  if (sec.group === "supplies") return "Supplies";
+  if (sec.title.indexOf("Frozen") !== -1) return "Frozen";
+  if (sec.title.indexOf("Refrigerated") !== -1) return "Refrigerated";
+  return "Dry Goods";
+}
 
 function zoneOf(sec) {
   if (sec.group === "taco" || sec.group === "brunch") return "specials";
@@ -277,9 +299,26 @@ function zoneOf(sec) {
   return "Dry Storage";
 }
 function isHalf(unit) { return HALF.indexOf(unit) !== -1; }
+// v40: packs, bags, jugs and boxes take quarters (.25 .5 .75); cases take quarters + an open case.
+// Quarters switch on only when the script sends quarterUnits (v40+), so this
+// page is safe to publish before the script update is installed.
+function qtrOn() { return !!(DATA && DATA.quarterUnits); }
+function isQtr(unit) { return qtrOn() && DATA.quarterUnits.indexOf(unit) !== -1; }
+var FRAC = [[0.25, "¼"], [0.5, "½"], [0.75, "¾"]];
+function fracText(n) {
+  n = Number(n); if (isNaN(n)) return "";
+  var w = Math.floor(n + 1e-9), f = Math.round((n - w) * 100), sym = { 25: "¼", 50: "½", 75: "¾" }[f];
+  return sym ? (w ? w : "") + sym : String(Math.round(n * 100) / 100);
+}
+function normNum(v) { return String(v === undefined ? "" : v).replace(/\s+/g, "").replace(/^\./, "0."); }
 // Case items: "2" = 2 cases, "2+3" = 2 cases + 3 loose (bags, sleeves...), "0+3" = loose only.
 function isCase(unit) { return unit === "Cases"; }
-function valid(v, unit) { return isCase(unit) ? /^\d+(\.5)?(\+\d+)?$/.test(v) : isHalf(unit) ? /^\d+(\.5)?$/.test(v) : /^\d+$/.test(v); }
+function valid(v, unit) {
+  v = normNum(v);
+  if (isCase(unit)) return qtrOn() ? /^\d+(\.(25|5|50|75))?(\+\d+)?$/.test(v) : /^\d+(\.5)?(\+\d+)?$/.test(v);
+  if (isQtr(unit)) return /^\d+(\.(25|5|50|75))?$/.test(v);
+  return /^\d+$/.test(v);
+}
 function looseOf(name) { var l = (DATA.loose || {})[name]; return { unit: (l && l[0]) || "Each", per: (l && Number(l[1])) || 0 }; }
 // What a partial case is counted in, as staff read it: "bags", "sleeves"... and "pieces" instead of "each".
 function looseWord(u) { u = String(u || "Each").toLowerCase(); return u === "each" ? "pieces" : u; }
@@ -287,7 +326,7 @@ function splitCase(v) { var m = /^([^+]*)(?:\+(.*))?$/.exec(v === undefined ? ""
 function caseEq(name, v) { var p = splitCase(v), lo = looseOf(name); return Number(p.c || 0) + (lo.per && p.l ? Number(p.l) / lo.per : 0); }
 function caseText(name, v) {
   var p = splitCase(v), lo = looseOf(name), out = [];
-  if (p.c !== "" && (Number(p.c) || !p.l)) out.push(p.c + " cs");
+  if (p.c !== "" && (Number(p.c) || !p.l)) out.push(fracText(p.c) + " cs");
   if (p.l) out.push(p.l + " " + looseWord(lo.unit));
   return out.join(" + ");
 }
@@ -298,12 +337,13 @@ function metaHtml(it) {
   var name = it[0], unit = it[1], v = counts[name], has = v !== undefined && v !== "";
   var ok = has && valid(v, unit), par = DATA.pars[name], tag = "";
   var amt = has && ok ? (isCase(unit) ? caseEq(name, v) : Number(v)) : 0;
-  if (has && !ok) tag = '<span class="tag err">' + (isCase(unit) ? "whole numbers" : isHalf(unit) ? "whole or .5" : "whole number") + '</span>';
+  if (has && !ok) tag = '<span class="tag err">' + (isCase(unit) ? "use ¼ ½ ¾ or whole" : isQtr(unit) ? "use ¼ ½ ¾ or whole" : "whole number") + '</span>';
   else if (ok && par !== undefined && amt < par) tag = '<span class="tag below">below par</span>';
   var lo = looseOf(name);
-  var lbl = isCase(unit) ? (lo.per ? lo.per + " " + esc(looseWord(lo.unit)) + " per case" : "Full cases + open case")
-    : esc(unit) + (isHalf(unit) ? " (½ OK)" : "");
-  return lbl + (par !== undefined ? " · par " + fmt(par) + (isCase(unit) ? " cs" : "") : "") + tag;
+  var lbl = isCase(unit) ? (lo.per ? "Cases · " + lo.per + " " + esc(looseWord(lo.unit)) + " per case" : "Cases + open case")
+    : esc(unit);
+  var cnt = has && ok ? " · <b>" + esc(isCase(unit) ? caseText(name, v) : fracText(v)) + "</b>" : "";
+  return lbl + (par !== undefined ? " · par " + fracText(par) + (isCase(unit) ? " cs" : "") : "") + cnt + tag;
 }
 function rowClass(it) {
   var v = counts[it[0]], has = v !== undefined && v !== "";
@@ -319,8 +359,7 @@ function passesFilter(it, sec) {
     case "priority": return sec.group === "priority";
     case "taco": return sec.group === "taco" || hasTag(it, "Taco Tuesday");
     case "brunch": return sec.group === "brunch" || hasTag(it, "Sunday Brunch");
-    case "supplies": return sec.group === "supplies";
-    default: return zoneOf(sec) === filter; // Frozen / Refrigerated / Dry Storage
+    default: return catOf(sec) === filter; // Frozen / Refrigerated / Sauces / Dry Goods / Supplies
   }
 }
 // Search matches the item name, its category (section) name, or any tag.
@@ -328,11 +367,40 @@ function passesFilter(it, sec) {
 function searchMatch(it, sec, q) {
   var tagHits = tagsOf(it).filter(function (t) { return t.toLowerCase().indexOf(q) !== -1; });
   if (it[0].toLowerCase().indexOf(q) !== -1) return tagHits;
-  if (sec.title.toLowerCase().indexOf(q) !== -1) return tagHits;
+  if (sec.title.toLowerCase().indexOf(q) !== -1 || catOf(sec).toLowerCase().indexOf(q) !== -1) return tagHits;
   return tagHits.length ? tagHits : null;
 }
+function fracRow(si, ii, cur, label) {
+  var f = Math.round((Number(cur) - Math.floor(Number(cur) || 0)) * 100);
+  return '<div class="fr"><span class="lbl">' + label + '</span>' + FRAC.map(function (q) {
+    return '<button type="button" class="' + (cur !== "" && f === Math.round(q[0] * 100) ? "on" : "") + '" onclick="setFrac(' + si + ',' + ii + ',' + q[0] + ')">' + q[1] + '</button>';
+  }).join("") + '</div>';
+}
+// Category totals for the dark category bars: counted / items.
+function catTotals() {
+  var t = {};
+  DATA.sections.forEach(function (sec) {
+    var c = catOf(sec), e = t[c] = t[c] || { n: 0, done: 0 };
+    sec.items.forEach(function (it) { e.n++; if (counts[it[0]] !== undefined) e.done++; });
+  });
+  return t;
+}
+function catBar(c, tot) {
+  var e = tot[c] || { n: 0, done: 0 };
+  return '<div class="cathead' + (e.n && e.done === e.n ? ' done' : '') + '" data-cat="' + esc(c) + '">' + esc(c) + '<span>' + e.done + ' / ' + e.n + ' counted</span></div>';
+}
+function refreshCatBars() {
+  var tot = catTotals();
+  Array.prototype.forEach.call(document.querySelectorAll(".cathead"), function (el) {
+    var e = tot[el.getAttribute("data-cat")] || { n: 0, done: 0 };
+    el.querySelector("span").textContent = e.done + " / " + e.n + " counted";
+    el.className = "cathead" + (e.n && e.done === e.n ? " done" : "");
+  });
+}
 function render() {
-  var html = "", any = false, q = query.toLowerCase();
+  var html = "", any = false, q = query.toLowerCase(), lastCat = null, tot = catTotals();
+  var catHasPri = {};
+  DATA.sections.forEach(function (sec) { if (sec.group === "priority" && sec.items.length) catHasPri[catOf(sec)] = true; });
   DATA.sections.forEach(function (sec, si) {
     var rows = "";
     sec.items.forEach(function (it, ii) {
@@ -341,7 +409,7 @@ function render() {
       else if (!passesFilter(it, sec)) return;
       var v = counts[name], has = v !== undefined && v !== "";
       var why = hits.length ? '<div class="meta">' + hits.map(function (t) { return '<span class="tag match">' + esc(t) + '</span>'; }).join("") + '</div>' : "";
-      var head = '<div class="info"><div class="nm">' + esc(name) + '</div>' +
+      var head = '<div class="info"><div class="nm">' + (sec.group === "priority" ? '<span class="star">★</span>' : '') + esc(name) + '</div>' +
         '<div class="meta">' + metaHtml(it) + '</div>' + why + '</div>';
       if (isCase(unit)) {
         var p = splitCase(has ? v : ""), lu = looseOf(name).unit;
@@ -349,20 +417,28 @@ function render() {
           '<div class="steps2">' +
           '<div class="stepc"><div class="cap">Full cases</div>' + stepper(si, ii, "c", p.c, name + " cases") + '</div>' +
           '<div class="stepc"><div class="cap">Open case · ' + esc(looseWord(lu)) + '</div>' + stepper(si, ii, "l", p.l, name + " open case " + looseWord(lu)) + '</div>' +
-          '</div></div>';
+          '</div>' + (qtrOn() ? fracRow(si, ii, p.c, "Part case") : '') + '</div>';
       } else {
-        rows += '<div class="' + rowClass(it) + '" id="row-' + si + '-' + ii + '">' + head +
+        var qtr = isQtr(unit);
+        rows += '<div class="' + rowClass(it) + (qtr ? ' q' : '') + '" id="row-' + si + '-' + ii + '">' + head +
           '<div class="step"><button type="button" onclick="bump(' + si + ',' + ii + ',-1)">−</button>' +
-          '<input inputmode="' + (isHalf(unit) ? "decimal" : "numeric") + '" value="' + (has ? esc(v) : "") + '" ' +
+          '<input inputmode="' + (qtr ? "decimal" : "numeric") + '" value="' + (has ? esc(v) : "") + '" ' +
           'oninput="setCount(' + si + ',' + ii + ',this.value)" aria-label="' + esc(name) + ' count">' +
-          '<button type="button" onclick="bump(' + si + ',' + ii + ',1)">+</button></div></div>';
+          '<button type="button" onclick="bump(' + si + ',' + ii + ',1)">+</button></div>' +
+          (qtr ? fracRow(si, ii, has ? v : "", "Part " + esc(String(unit).toLowerCase().replace(/s$/, ""))) : '') + '</div>';
       }
     });
     if (!rows) return;
     any = true;
-    var help = sec.group === "taco" ? "Count on Mondays." : sec.group === "brunch" ? "Count on Fridays." :
-      sec.group === "full" ? "After Daily Priority, when time allows." : sec.group === "supplies" ? "When time allows." : "";
-    html += '<div class="section"><h2>' + esc(sec.title) + '</h2>' + (help ? '<div class="help">' + help + '</div>' : "") + rows + '</div>';
+    var cat = catOf(sec);
+    if (cat !== lastCat) { html += catBar(cat, tot); lastCat = cat; }
+    var sub = "", help = "";
+    if (sec.group === "priority") { sub = "★ Daily Priority — count first"; }
+    else if (sec.group === "full") { sub = catHasPri[cat] ? "Everything else — when time allows" : ""; }
+    else if (sec.group === "taco") { help = "Count on Mondays."; }
+    else if (sec.group === "brunch") { help = "Count on Fridays."; }
+    else if (sec.group === "supplies") { sub = sec.title.replace(/^Supplies\s*—\s*/, ""); }
+    html += '<div class="section">' + (sub ? '<h2 class="sub">' + esc(sub) + '</h2>' : "") + (help ? '<div class="help">' + help + '</div>' : "") + rows + '</div>';
   });
   document.getElementById("list").innerHTML = html;
   document.getElementById("noResults").style.display = any ? "none" : "block";
@@ -371,7 +447,7 @@ function render() {
 }
 function stepper(si, ii, part, val, label) {
   return '<div class="step"><button type="button" onclick="bumpCase(' + si + ',' + ii + ',\'' + part + '\',-1)">−</button>' +
-    '<input inputmode="numeric" data-part="' + part + '" value="' + esc(val) + '" ' +
+    '<input inputmode="' + (part === "c" ? "decimal" : "numeric") + '" data-part="' + part + '" value="' + esc(val) + '" ' +
     'oninput="setCasePart(' + si + ',' + ii + ',\'' + part + '\',this.value)" aria-label="' + esc(label) + '">' +
     '<button type="button" onclick="bumpCase(' + si + ',' + ii + ',\'' + part + '\',1)">+</button></div>';
 }
@@ -392,8 +468,11 @@ function setCasePart(si, ii, part, val) {
 function bumpCase(si, ii, part, dir) {
   var it = DATA.sections[si].items[ii], p = splitCase(counts[it[0]]);
   if (p[part] === "" && dir < 0) return;
-  var cur = Math.floor(Number(p[part])); if (isNaN(cur)) cur = 0;
-  p[part] = String(Math.max(0, cur + dir));
+  var cur = Number(p[part]); if (isNaN(cur)) cur = 0;
+  if (part === "l") cur = Math.floor(cur);
+  var nv = Math.max(0, Math.round((cur + dir) * 100) / 100);
+  if (cur + dir < 0) nv = 0;
+  p[part] = String(nv);
   var v = joinCase(p.c, p.l);
   if (v === "") delete counts[it[0]]; else counts[it[0]] = v;
   updateRow(si, ii, true); updateProgress(); save();
@@ -409,8 +488,14 @@ function updateRow(si, ii, setInput) {
   var it = DATA.sections[si].items[ii];
   var row = document.getElementById("row-" + si + "-" + ii);
   if (!row) return;
-  row.className = rowClass(it) + (isCase(it[1]) ? " case" : "");
+  row.className = rowClass(it) + (isCase(it[1]) ? " case" : isQtr(it[1]) ? " q" : "");
   row.querySelector(".meta").innerHTML = metaHtml(it);
+  var fr = row.querySelector(".fr");
+  if (fr) {
+    var raw = isCase(it[1]) ? splitCase(counts[it[0]]).c : counts[it[0]];
+    var f = raw === undefined || raw === "" ? -1 : Math.round((Number(raw) - Math.floor(Number(raw) || 0)) * 100);
+    Array.prototype.forEach.call(fr.querySelectorAll("button"), function (b, k) { b.className = f === Math.round(FRAC[k][0] * 100) ? "on" : ""; });
+  }
   if (!setInput) return;
   if (isCase(it[1])) {
     var p = splitCase(counts[it[0]]);
@@ -418,13 +503,27 @@ function updateRow(si, ii, setInput) {
     row.querySelector('input[data-part="l"]').value = p.l;
   } else row.querySelector("input").value = counts[it[0]] === undefined ? "" : counts[it[0]];
 }
+// ¼ ½ ¾ buttons: set the part after the whole number (tap again to clear it).
+function setFrac(si, ii, fr) {
+  var it = DATA.sections[si].items[ii], name = it[0];
+  if (isCase(it[1])) {
+    var p = splitCase(counts[name]), whole = Math.floor(Number(p.c) || 0), cur = (Number(p.c) || 0) - whole;
+    p.c = String(Math.abs(cur - fr) < 1e-6 ? whole : whole + fr);
+    var v = joinCase(p.c, p.l);
+    if (v === "") delete counts[name]; else counts[name] = v;
+  } else {
+    var n = Number(counts[name]) || 0, w = Math.floor(n), c = n - w;
+    counts[name] = String(Math.abs(c - fr) < 1e-6 ? w : w + fr);
+  }
+  updateRow(si, ii, true); updateProgress(); save();
+}
 function bump(si, ii, dir) {
   var it = DATA.sections[si].items[ii];
-  var step = isHalf(it[1]) ? 0.5 : 1;
+  var step = 1;
   var cur = Number(counts[it[0]]); if (isNaN(cur)) cur = 0;
   if (counts[it[0]] === undefined && dir < 0) return;
   var n = Math.max(0, cur + dir * step);
-  counts[it[0]] = fmt(n);
+  counts[it[0]] = String(Math.round(n * 100) / 100);
   updateRow(si, ii, true); updateProgress(); save();
 }
 function updateProgress() {
@@ -432,6 +531,7 @@ function updateProgress() {
   DATA.priorityItems.forEach(function (name) { if (counts[name] !== undefined) p++; });
   for (var k in counts) n++;
   document.getElementById("progTxt").textContent = p + " / " + total;
+  refreshCatBars();
   document.getElementById("meter").style.width = (total ? Math.round(p / total * 100) : 0) + "%";
 }
 function renderChips() {
@@ -458,7 +558,8 @@ function readWriteIns() {
     var u = document.getElementById("wiU" + i).value;
     if (!it && !c && !u) continue;
     if (!it || !c || !u) { bad.push("Write-in " + (i + 1) + ": needs item, count and unit"); continue; }
-    if (!/^\d+(\.5)?$/.test(c)) { bad.push("Write-in \"" + it + "\": count must be a whole number (or .5)"); continue; }
+    c = normNum(c);
+    if (!/^\d+(\.(25|5|50|75))?$/.test(c)) { bad.push("Write-in \"" + it + "\": count must be a whole number (or .25 .5 .75)"); continue; }
     out.push({ item: it, count: c, unit: u });
   }
   return { list: out, bad: bad };
@@ -511,7 +612,7 @@ function openConfirm() {
   if (!name) { showSheet('<h3>Add your name</h3><p>Your name is required before submitting.</p><div class="row"><button class="btn" onclick="closeSheet();document.getElementById(\'name\').focus()">OK</button></div>'); return; }
   var bad = [];
   DATA.sections.forEach(function (sec) { sec.items.forEach(function (it) {
-    var v = counts[it[0]]; if (v !== undefined && !valid(v, it[1])) bad.push(it[0] + " — " + (isCase(it[1]) ? "whole numbers for full cases and open case" : isHalf(it[1]) ? "whole or half cases" : "whole " + it[1].toLowerCase()));
+    var v = counts[it[0]]; if (v !== undefined && !valid(v, it[1])) bad.push(it[0] + " — " + (isCase(it[1]) ? "full cases (whole or ¼ ½ ¾) and a whole open-case count" : isQtr(it[1]) ? "whole or ¼ ½ ¾" : "whole " + it[1].toLowerCase()));
   }); });
   var wi = readWriteIns(); bad = bad.concat(wi.bad);
   if (bad.length) { showSheet('<h3>Fix these first</h3><div class="list">' + bad.map(esc).join("<br>") + '</div><div class="row"><button class="btn" onclick="closeSheet()">OK</button></div>'); return; }
