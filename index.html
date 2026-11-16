@@ -327,7 +327,7 @@ function caseEq(name, v) { var p = splitCase(v), lo = looseOf(name); return Numb
 function caseText(name, v) {
   var p = splitCase(v), lo = looseOf(name), out = [];
   if (p.c !== "" && (Number(p.c) || !p.l)) out.push(fracText(p.c) + " cs");
-  if (p.l) out.push(p.l + " " + looseWord(lo.unit));
+  if (p.l) out.push(p.l + " " + (Number(p.l) === 1 ? String(looseWord(lo.unit)).replace(/ies$/, "y").replace(/(x|ch|sh)es$/, "$1").replace(/([^s])s$/, "$1") : looseWord(lo.unit)));
   return out.join(" + ");
 }
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
